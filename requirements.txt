@@ -1,0 +1,6 @@
+asgiref==3.13.0
+Django==5.2.19
+packaging==26.3
+setuptools==84.2.1
+sqlparse==0.6.1
+wheel==0.48.0
