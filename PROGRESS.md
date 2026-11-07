@@ -1,7 +1,7 @@
 # PROGRESS
 
 ## Current stage
-**Stage 2: Task 1 (Django documents app).** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
+**Stage 2: Task 2 (Docker).** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
 Strategy: strict MVP first. Get the end-to-end path working before adding anything else.
 
 ## Milestones
@@ -17,7 +17,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ accepted (verified) · ⏸ po
 | # | Task | Milestone | Budget | Actual | Status |
 |---|------|-----------|--------|--------|--------|
 | 0 | Conda env, git, `.gitignore`, Django project boots (`.env.example` moved to Task 1) | M1 | 40m | ~2h | ✅ |
-| 1 | `documents` app: env-based settings, `Document` model, Admin, DOCX extraction on save | M1 | 60m | | 🟨 |
+| 1 | `documents` app: env-based settings, `Document` model, Admin, DOCX extraction on save | M1 | 60m | ~3h | ✅ |
 | 2 | Minimal Dockerfile + compose; volume persistence test (SQLite + media) | M1 | 40m | | ⬜ |
 | 3 | OpenRouter smoke test: ChatOpenRouter, model availability, timeout and error handling | M1 | 25m | | ⬜ |
 | 4 | `rag/`: chunking, E5 embeddings (with prefixes), Chroma indexing; sync on save/delete | M1 | 75m | | ⬜ |
@@ -65,14 +65,15 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
   or the build is too slow, switch to fastembed.
 
 ## Next task
-Task 1c: DOCX extraction at validation time.
+Task 2: minimal Dockerfile + compose; volume persistence test (SQLite + media).
 
 ## Task 1 sub-steps
 - 1a ✅ env-based settings (`ImproperlyConfigured` on a missing key, `except KeyError ... from None`), `documents` app, `Document` model, migration 0001, MEDIA_ROOT (accepted 2026-11-07)
-- 1b ✅ migration 0002 (AlterField + rollback experiment), DocumentAdmin, superuser, upload/validation verified (accepted 2026-11-07, pending the one-line MEDIA_URL fix)
-- 1c 🟨 `rag/extraction.py` (pure, Django-free) + `DocumentAdminForm.clean_file` (extract at validation time)
+- 1b ✅ migration 0002 (AlterField + rollback experiment), DocumentAdmin, superuser, upload/validation verified (accepted 2026-11-07; MEDIA_URL fix confirmed in 1c)
+- 1c ✅ `rag/extraction.py` (pure, Django-free; catches BadZipFile/PackageNotFoundError/KeyError; filters empty blocks at source) + `DocumentAdminForm.clean_file` (extracts only for a new `UploadedFile`). Verified: Persian/table/English order, fake/zip/empty rejected with form errors, rejected upload leaves nothing in media/, title-only edit keeps text (accepted 2026-11-07). Follow-ups: add `from exc` in clean_file; merged cells duplicate text (known limitation).
 
 ## Schedule adjustments
+- Task 1 overran (~3h vs 60m: Django/forms/DOCX teaching + exception debugging). Task 8 shrinks further; keep Task 2 strictly minimal.
 - Task 0 overran (~2h vs 40m: foundations teaching + user-site leak). Default response: shrink Task 8 to the tests that matter most (RRF, index sync, ask API with a mocked LLM); docs/ZIP stay on Day 2.
 
 ## Incident log
@@ -81,6 +82,8 @@ Task 1c: DOCX extraction at validation time.
   (from older `pip install --user` runs) sits on `sys.path` *before* the env's site-packages,
   so it shadows newer versions (packaging 24.2 shadowed 26.3). It would have shadowed LangChain 1.x
   and polluted the Docker requirements. Fix: set `PYTHONNOUSERSITE=1` as an env var on the conda env.
+
+- **2026-11-07, wrong exception caught in extraction.** The user's experiment passed a *path*, which gave `PackageNotFoundError`; production passes a *stream*, which gives `zipfile.BadZipFile`. A zip that isn't a DOCX gives `KeyError`. Lesson: run an experiment under the same conditions as production.
 
 ## Interview question bank
 _(filled per accepted component)_
