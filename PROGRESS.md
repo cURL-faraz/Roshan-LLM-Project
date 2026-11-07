@@ -64,7 +64,12 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
   or the build is too slow, switch to fastembed.
 
 ## Next task
-Task 1a: create the `documents` app and the `Document` model.
+Task 1b: media storage settings, `file` max_length migration (0002), Admin registration.
+
+## Task 1 sub-steps
+- 1a ✅ env-based settings (`ImproperlyConfigured` on a missing key, `except KeyError ... from None`), `documents` app, `Document` model, migration 0001, MEDIA_ROOT (accepted 2026-11-07)
+- 1b ⬜ MEDIA_URL (MEDIA_ROOT already set in 1a), `file` max_length=255 via migration 0002, ModelAdmin, superuser, upload tests
+- 1c ⬜ DOCX extraction + where it hooks in (design decision)
 
 ## Schedule adjustments
 - Task 0 overran (~2h vs 40m: foundations teaching + user-site leak). Default response: shrink Task 8 to the tests that matter most (RRF, index sync, ask API with a mocked LLM); docs/ZIP stay on Day 2.
@@ -80,4 +85,4 @@ Task 1a: create the `documents` app and the `Document` model.
 _(filled per accepted component)_
 
 ## Knowledge gaps
-_(things the user cannot yet explain confidently)_
+- QuerySet evaluation: knows iteration triggers the query; still needs the full path (Query object → SQL compiler → cursor → model instances), the other triggers (`list`, `len`, `bool`, slicing, `repr`), and result caching.
