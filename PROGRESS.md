@@ -48,6 +48,7 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
 - The extraction and tokenization pipeline is language-independent: Unicode normalization and
   Unicode-aware tokens, with no language-specific stemming.
 - Advanced retrieval: dense search first, then BM25 + dense fused with Reciprocal Rank Fusion. No reranker.
+- Extraction happens at form/serializer validation time through a pure function in `rag/extraction.py`, so an invalid DOCX is rejected with a validation error before any file is written. Admin and the API share the function.
 - Indexing runs synchronously on save (no Celery). Storage is SQLite + Chroma.
 - Dependencies: install intentionally into the clean `roshan-rag` env, then
   `python -m pip freeze > requirements.txt` gives a full snapshot shared by local and Docker.
@@ -64,12 +65,12 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
   or the build is too slow, switch to fastembed.
 
 ## Next task
-Task 1b: media storage settings, `file` max_length migration (0002), Admin registration.
+Task 1c: DOCX extraction at validation time.
 
 ## Task 1 sub-steps
 - 1a ✅ env-based settings (`ImproperlyConfigured` on a missing key, `except KeyError ... from None`), `documents` app, `Document` model, migration 0001, MEDIA_ROOT (accepted 2026-11-07)
-- 1b ⬜ MEDIA_URL (MEDIA_ROOT already set in 1a), `file` max_length=255 via migration 0002, ModelAdmin, superuser, upload tests
-- 1c ⬜ DOCX extraction + where it hooks in (design decision)
+- 1b ✅ migration 0002 (AlterField + rollback experiment), DocumentAdmin, superuser, upload/validation verified (accepted 2026-11-07, pending the one-line MEDIA_URL fix)
+- 1c 🟨 `rag/extraction.py` (pure, Django-free) + `DocumentAdminForm.clean_file` (extract at validation time)
 
 ## Schedule adjustments
 - Task 0 overran (~2h vs 40m: foundations teaching + user-site leak). Default response: shrink Task 8 to the tests that matter most (RRF, index sync, ask API with a mocked LLM); docs/ZIP stay on Day 2.
