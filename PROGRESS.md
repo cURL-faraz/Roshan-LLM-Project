@@ -1,7 +1,7 @@
 # PROGRESS
 
 ## Current stage
-**Stage 2: Task 2 (Docker).** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
+**Stage 2: Task 3 (OpenRouter smoke test).** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
 Strategy: strict MVP first. Get the end-to-end path working before adding anything else.
 
 ## Milestones
@@ -18,7 +18,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ accepted (verified) · ⏸ po
 |---|------|-----------|--------|--------|--------|
 | 0 | Conda env, git, `.gitignore`, Django project boots (`.env.example` moved to Task 1) | M1 | 40m | ~2h | ✅ |
 | 1 | `documents` app: env-based settings, `Document` model, Admin, DOCX extraction on save | M1 | 60m | ~3h | ✅ |
-| 2 | Minimal Dockerfile + compose; volume persistence test (SQLite + media) | M1 | 40m | | ⬜ |
+| 2 | Minimal Dockerfile + compose; volume persistence test (SQLite + media) | M1 | 40m | ~45m | ✅ |
 | 3 | OpenRouter smoke test: ChatOpenRouter, model availability, timeout and error handling | M1 | 25m | | ⬜ |
 | 4 | `rag/`: chunking, E5 embeddings (with prefixes), Chroma indexing; sync on save/delete | M1 | 75m | | ⬜ |
 | 5 | `qa` app: `QARecord`, dense retrieve → prompt → generate, `POST /api/ask/` | M1 | 70m | | ⬜ |
@@ -65,12 +65,14 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
   or the build is too slow, switch to fastembed.
 
 ## Next task
-Task 2: minimal Dockerfile + compose; volume persistence test (SQLite + media).
+Task 3: OpenRouter smoke test (ChatOpenRouter, model from env, timeout/error handling).
 
 ## Task 1 sub-steps
 - 1a ✅ env-based settings (`ImproperlyConfigured` on a missing key, `except KeyError ... from None`), `documents` app, `Document` model, migration 0001, MEDIA_ROOT (accepted 2026-11-07)
 - 1b ✅ migration 0002 (AlterField + rollback experiment), DocumentAdmin, superuser, upload/validation verified (accepted 2026-11-07; MEDIA_URL fix confirmed in 1c)
 - 1c ✅ `rag/extraction.py` (pure, Django-free; catches BadZipFile/PackageNotFoundError/KeyError; filters empty blocks at source) + `DocumentAdminForm.clean_file` (extracts only for a new `UploadedFile`). Verified: Persian/table/English order, fake/zip/empty rejected with form errors, rejected upload leaves nothing in media/, title-only edit keeps text (accepted 2026-11-07). Follow-ups: add `from exc` in clean_file; merged cells duplicate text (known limitation).
+
+- 2 ✅ `python:3.12-slim`, requirements layer before source, `.dockerignore` (secrets/state/caches), compose with `env_file`, named volumes `data`/`media`, `migrate && runserver 0.0.0.0:8000`, host port bound to `127.0.0.1`. Verified: Admin works in container, data (1 doc, 1 user) survives `down`/`up`, no `.env` in `/app`. Image 198 MB before torch (accepted 2026-11-08).
 
 ## Schedule adjustments
 - Task 1 overran (~3h vs 60m: Django/forms/DOCX teaching + exception debugging). Task 8 shrinks further; keep Task 2 strictly minimal.
@@ -89,4 +91,6 @@ Task 2: minimal Dockerfile + compose; volume persistence test (SQLite + media).
 _(filled per accepted component)_
 
 ## Knowledge gaps
+- Container data loss is about *lifecycle*, not isolation: the writable layer dies with the container on `down` (not on `stop`). Any file not in a volume/image is gone; `migrate` then creates a fresh empty DB.
+- Form validation order: model-field validators (e.g. `FileExtensionValidator` on the model) run in `_post_clean` → `instance.full_clean()`, i.e. *after* `clean_<field>`; and `FileField` writes bytes to storage during `save()` (`pre_save`), which is the real reason extraction can't wait for `Model.save()`.
 - QuerySet evaluation: knows iteration triggers the query; still needs the full path (Query object → SQL compiler → cursor → model instances), the other triggers (`list`, `len`, `bool`, slicing, `repr`), and result caching.

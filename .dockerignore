@@ -1,0 +1,11 @@
+.claude/
+.vscode/
+data/
+media/
+.git/
+.env
+CLAUDE.md
+PROGRESS.md
+**/__pycache__/
+**/*.py[cod]
+**/.DS_Store
