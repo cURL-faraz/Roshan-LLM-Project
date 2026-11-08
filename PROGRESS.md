@@ -1,7 +1,7 @@
 # PROGRESS
 
 ## Current stage
-**Stage 2: Task 3 (OpenRouter smoke test).** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
+**Stage 2: Task 4 (chunking, embeddings, Chroma, sync).** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
 Strategy: strict MVP first. Get the end-to-end path working before adding anything else.
 
 ## Milestones
@@ -19,8 +19,8 @@ Legend: ⬜ not started · 🟨 in progress · ✅ accepted (verified) · ⏸ po
 | 0 | Conda env, git, `.gitignore`, Django project boots (`.env.example` moved to Task 1) | M1 | 40m | ~2h | ✅ |
 | 1 | `documents` app: env-based settings, `Document` model, Admin, DOCX extraction on save | M1 | 60m | ~3h | ✅ |
 | 2 | Minimal Dockerfile + compose; volume persistence test (SQLite + media) | M1 | 40m | ~45m | ✅ |
-| 3 | OpenRouter smoke test: ChatOpenRouter, model availability, timeout and error handling | M1 | 25m | | 🟨 |
-| 4 | `rag/`: chunking, E5 embeddings (with prefixes), Chroma indexing; sync on save/delete | M1 | 75m | | ⬜ |
+| 3 | OpenRouter smoke test: ChatOpenRouter, model availability, timeout and error handling | M1 | 25m | ~70m | ✅ |
+| 4 | `rag/`: chunking, E5 embeddings (with prefixes), Chroma indexing; sync on save/delete | M1 | 75m | | 🟨 |
 | 5 | `qa` app: `QARecord`, dense retrieve → prompt → generate, `POST /api/ask/` | M1 | 70m | | ⬜ |
 | — | **M1 check: full flow inside Docker Compose** | M1 | 10m | | ⬜ |
 | 6 | DRF documents CRUD API (upload, edit, delete) + history endpoint | M2 | 35m | | ⬜ |
@@ -65,7 +65,7 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
   or the build is too slow, switch to fastembed.
 
 ## Next task
-Task 3: OpenRouter smoke test (ChatOpenRouter, model from env, timeout/error handling).
+Task 4b: `rag/pipeline.py` + Django signals with `transaction.on_commit`; then Task 5.
 
 ## Task 1 sub-steps
 - 1a ✅ env-based settings (`ImproperlyConfigured` on a missing key, `except KeyError ... from None`), `documents` app, `Document` model, migration 0001, MEDIA_ROOT (accepted 2026-11-07)
@@ -74,11 +74,18 @@ Task 3: OpenRouter smoke test (ChatOpenRouter, model from env, timeout/error han
 
 - 2 ✅ `python:3.12-slim`, requirements layer before source, `.dockerignore` (secrets/state/caches), compose with `env_file`, named volumes `data`/`media`, `migrate && runserver 0.0.0.0:8000`, host port bound to `127.0.0.1`. Verified: Admin works in container, data (1 doc, 1 user) survives `down`/`up`, no `.env` in `/app`. Image 198 MB before torch (accepted 2026-11-08).
 
+- 3 ✅ `rag/llm.build_chat_model` (seconds→ms at the boundary), `scripts/smoke_llm.py`: Persian answer, 9.6 s for 1209 output tokens (latency scales with output length → cap `max_tokens`/ask for concise answers in Task 5), invalid key → `UnauthorizedResponseError` (accepted 2026-11-08).
+
+- 4a ✅ `rag/chunking.py` (800/120 chars, sentence separators kept at chunk end, deterministic ids), `rag/vectorstore.py` (E5 prefixes, normalized, cosine). Verified: 384 dims, norm 1.0, no duplicates on re-index, Persian and English queries at dist 0.165/0.178 (accepted 2026-11-08). Multi-chunk ranking still to be checked on a longer document in 4b.
+
 ## Schedule adjustments
 - Task 1 overran (~3h vs 60m: Django/forms/DOCX teaching + exception debugging). Task 8 shrinks further; keep Task 2 strictly minimal.
 - Task 0 overran (~2h vs 40m: foundations teaching + user-site leak). Default response: shrink Task 8 to the tests that matter most (RRF, index sync, ask API with a mocked LLM); docs/ZIP stay on Day 2.
 
 ## Incident log
+- **2026-11-08, HF model load PermissionError.** `~/.cache` is owned by root with mode 700 (from an earlier sudo run; dated Jul 30), so the Hugging Face library can't read its token file or write its cache. Code was fine: the check passes with a writable `HF_HOME`. Fix: chown `~/.cache` back to the user.
+
+- **2026-11-08, pydantic conflict after Task 4 install.** Installing chroma/HF stack upgraded pydantic to 2.14.3, violating `openrouter`'s `pydantic<2.13`. Cause: pip resolves only the packages being installed, not the whole env. Fix: `pip install "pydantic>=2.11.2,<2.13"` (→ 2.12.5), then `pip check`, re-run smoke test, then freeze. The real source was `kubernetes` 37 (pulled by chromadb, needs `pydantic>=2.14.2`); fixed by pinning `kubernetes==35.0.0` (chromadb accepts `>=28.1.0`, no pydantic requirement). `pip check` clean, smoke test re-passed, requirements refrozen. Rule: always `pip check` before `pip freeze`.
 - **2026-11-08, smoke test hangs ~5 min with no output.** Root cause: `ChatOpenRouter(timeout=...)` is in **milliseconds** (maps to SDK `timeout_ms`); `60` meant 60 ms, so every attempt timed out and the SDK kept retrying with backoff (stack dump showed `openrouter/utils/retries.py: retry_with_backoff`, even with `max_retries=0`). Evidence: same call with `60_000` returned in ~1s. Lesson: check units in the installed source (`model_fields`/docstring), not by assumption.
 
 - **2026-11-06, user site-packages leak.** `pip freeze` in `roshan-rag` listed langchain 0.2.11,
