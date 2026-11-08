@@ -36,6 +36,7 @@ DEBUG = os.environ.get('DJANGO_DEBUG', '0') == '1'
 
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if host.strip()]
 
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "intfloat/multilingual-e5-small")
 
 # Application definition
 
@@ -84,6 +85,9 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATA_DIR = BASE_DIR / 'data'
 DATA_DIR.mkdir(exist_ok=True)
+
+CHROMA_DIR = DATA_DIR / 'chroma'
+CHROMA_DIR.mkdir(exist_ok=True)
 
 DATABASES = {
     'default': {

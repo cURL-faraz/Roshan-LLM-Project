@@ -1,7 +1,7 @@
 # PROGRESS
 
 ## Current stage
-**Stage 2: Task 4 (chunking, embeddings, Chroma, sync).** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
+**Stage 2: Task 5 (`qa` app, retrieval, generation, `POST /api/ask/`).** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
 Strategy: strict MVP first. Get the end-to-end path working before adding anything else.
 
 ## Milestones
@@ -20,8 +20,8 @@ Legend: ⬜ not started · 🟨 in progress · ✅ accepted (verified) · ⏸ po
 | 1 | `documents` app: env-based settings, `Document` model, Admin, DOCX extraction on save | M1 | 60m | ~3h | ✅ |
 | 2 | Minimal Dockerfile + compose; volume persistence test (SQLite + media) | M1 | 40m | ~45m | ✅ |
 | 3 | OpenRouter smoke test: ChatOpenRouter, model availability, timeout and error handling | M1 | 25m | ~70m | ✅ |
-| 4 | `rag/`: chunking, E5 embeddings (with prefixes), Chroma indexing; sync on save/delete | M1 | 75m | | 🟨 |
-| 5 | `qa` app: `QARecord`, dense retrieve → prompt → generate, `POST /api/ask/` | M1 | 70m | | ⬜ |
+| 4 | `rag/`: chunking, E5 embeddings (with prefixes), Chroma indexing; sync on save/delete | M1 | 75m | ~2h | ✅ |
+| 5 | `qa` app: `QARecord`, dense retrieve → prompt → generate, `POST /api/ask/` | M1 | 70m | | 🟨 |
 | — | **M1 check: full flow inside Docker Compose** | M1 | 10m | | ⬜ |
 | 6 | DRF documents CRUD API (upload, edit, delete) + history endpoint | M2 | 35m | | ⬜ |
 | 7 | BM25 retriever + RRF fusion (user writes RRF) + duplicate handling | M2 | 50m | | ⬜ |
@@ -65,7 +65,7 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
   or the build is too slow, switch to fastembed.
 
 ## Next task
-Task 4b: `rag/pipeline.py` + Django signals with `transaction.on_commit`; then Task 5.
+Task 5: `QARecord`, dense retrieve → prompt → generate, `POST /api/ask/`.
 
 ## Task 1 sub-steps
 - 1a ✅ env-based settings (`ImproperlyConfigured` on a missing key, `except KeyError ... from None`), `documents` app, `Document` model, migration 0001, MEDIA_ROOT (accepted 2026-11-07)
@@ -78,11 +78,15 @@ Task 4b: `rag/pipeline.py` + Django signals with `transaction.on_commit`; then T
 
 - 4a ✅ `rag/chunking.py` (800/120 chars, sentence separators kept at chunk end, deterministic ids), `rag/vectorstore.py` (E5 prefixes, normalized, cosine). Verified: 384 dims, norm 1.0, no duplicates on re-index, Persian and English queries at dist 0.165/0.178 (accepted 2026-11-08). Multi-chunk ranking still to be checked on a longer document in 4b.
 
+- 4b ✅ `rag/pipeline.py` + `post_save`/`post_delete` signals with `transaction.on_commit(robust=True)`. Verified in Admin: long file 22 chunks, title edit stays 22, file swap drops to 1, bulk delete removes all (accepted 2026-11-08).
+
 ## Schedule adjustments
 - Task 1 overran (~3h vs 60m: Django/forms/DOCX teaching + exception debugging). Task 8 shrinks further; keep Task 2 strictly minimal.
 - Task 0 overran (~2h vs 40m: foundations teaching + user-site leak). Default response: shrink Task 8 to the tests that matter most (RRF, index sync, ask API with a mocked LLM); docs/ZIP stay on Day 2.
 
 ## Incident log
+- **2026-11-08, 500 on Admin save during indexing (two causes).** (1) Document 1 predates extraction, so its `extracted_text` is empty; a title edit doesn't re-extract, so `chunk_text` returned `[]` and Chroma rejects an empty upsert (`ValueError`). Fix: return early when there are no chunks. (2) `robust=True` should have logged that error, but Django's logger reads `func.__qualname__`, which `functools.partial` lacks (`AttributeError`). Mentor's template suggested `partial`. Fix: copy values into locals, pass a `lambda` (it has `__qualname__`).
+
 - **2026-11-08, HF model load PermissionError.** `~/.cache` is owned by root with mode 700 (from an earlier sudo run; dated Jul 30), so the Hugging Face library can't read its token file or write its cache. Code was fine: the check passes with a writable `HF_HOME`. Fix: chown `~/.cache` back to the user.
 
 - **2026-11-08, pydantic conflict after Task 4 install.** Installing chroma/HF stack upgraded pydantic to 2.14.3, violating `openrouter`'s `pydantic<2.13`. Cause: pip resolves only the packages being installed, not the whole env. Fix: `pip install "pydantic>=2.11.2,<2.13"` (→ 2.12.5), then `pip check`, re-run smoke test, then freeze. The real source was `kubernetes` 37 (pulled by chromadb, needs `pydantic>=2.14.2`); fixed by pinning `kubernetes==35.0.0` (chromadb accepts `>=28.1.0`, no pydantic requirement). `pip check` clean, smoke test re-passed, requirements refrozen. Rule: always `pip check` before `pip freeze`.
@@ -100,6 +104,7 @@ Task 4b: `rag/pipeline.py` + Django signals with `transaction.on_commit`; then T
 _(filled per accepted component)_
 
 ## Knowledge gaps
+- OpenRouter SDK retry budget: time-based, not count-based. Timeouts and 5xx are retried until `max_retries × 150 s` elapses; 429 and 400 fail immediately. Worst-case wait with `max_retries=2` is about 5 minutes, so the API uses `max_retries=1`.
 - Container data loss is about *lifecycle*, not isolation: the writable layer dies with the container on `down` (not on `stop`). Any file not in a volume/image is gone; `migrate` then creates a fresh empty DB.
 - Form validation order: model-field validators (e.g. `FileExtensionValidator` on the model) run in `_post_clean` → `instance.full_clean()`, i.e. *after* `clean_<field>`; and `FileField` writes bytes to storage during `save()` (`pre_save`), which is the real reason extraction can't wait for `Model.save()`.
 - QuerySet evaluation: knows iteration triggers the query; still needs the full path (Query object → SQL compiler → cursor → model instances), the other triggers (`list`, `len`, `bool`, slicing, `repr`), and result caching.
