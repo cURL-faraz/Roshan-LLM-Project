@@ -19,7 +19,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ accepted (verified) · ⏸ po
 | 0 | Conda env, git, `.gitignore`, Django project boots (`.env.example` moved to Task 1) | M1 | 40m | ~2h | ✅ |
 | 1 | `documents` app: env-based settings, `Document` model, Admin, DOCX extraction on save | M1 | 60m | ~3h | ✅ |
 | 2 | Minimal Dockerfile + compose; volume persistence test (SQLite + media) | M1 | 40m | ~45m | ✅ |
-| 3 | OpenRouter smoke test: ChatOpenRouter, model availability, timeout and error handling | M1 | 25m | | ⬜ |
+| 3 | OpenRouter smoke test: ChatOpenRouter, model availability, timeout and error handling | M1 | 25m | | 🟨 |
 | 4 | `rag/`: chunking, E5 embeddings (with prefixes), Chroma indexing; sync on save/delete | M1 | 75m | | ⬜ |
 | 5 | `qa` app: `QARecord`, dense retrieve → prompt → generate, `POST /api/ask/` | M1 | 70m | | ⬜ |
 | — | **M1 check: full flow inside Docker Compose** | M1 | 10m | | ⬜ |
@@ -42,7 +42,7 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
 - Docker: one `web` service, with named volumes for `data/` (SQLite + Chroma), `media/` and the HF model cache.
 
 ## Key decisions
-- Chat LLM: OpenRouter through `langchain-openrouter` (`ChatOpenRouter`), with the model name from an env var.
+- Chat LLM: OpenRouter through `langchain-openrouter` (`ChatOpenRouter`); model id, key, timeout from env (`OPENROUTER_MODEL`, default `nvidia/nemotron-3.5-lightning:free` (gemma-4 free returned 429 upstream on 2026-11-08; nemotron answered Persian in ~2–3s); free-model list changes, so it's configurable). Factory `rag/llm.build_chat_model` returns `BaseChatModel` so the pipeline is provider-agnostic. Errors: `langchain-openrouter` 0.2.9 does NOT translate to `langchain_core.exceptions`; it raises `openrouter.errors.*` (base `OpenRouterError`): 401 `UnauthorizedResponseError`, 400 `BadRequestResponseError` (unknown model), 429 `TooManyRequestsResponseError`.
 - Embeddings: `intfloat/multilingual-e5-small` with sentence-transformers and CPU-only torch;
   fastembed is the fallback. See `docs/adr/0001-embeddings.md` (proposed).
 - The extraction and tokenization pipeline is language-independent: Unicode normalization and
@@ -79,6 +79,8 @@ Task 3: OpenRouter smoke test (ChatOpenRouter, model from env, timeout/error han
 - Task 0 overran (~2h vs 40m: foundations teaching + user-site leak). Default response: shrink Task 8 to the tests that matter most (RRF, index sync, ask API with a mocked LLM); docs/ZIP stay on Day 2.
 
 ## Incident log
+- **2026-11-08, smoke test hangs ~5 min with no output.** Root cause: `ChatOpenRouter(timeout=...)` is in **milliseconds** (maps to SDK `timeout_ms`); `60` meant 60 ms, so every attempt timed out and the SDK kept retrying with backoff (stack dump showed `openrouter/utils/retries.py: retry_with_backoff`, even with `max_retries=0`). Evidence: same call with `60_000` returned in ~1s. Lesson: check units in the installed source (`model_fields`/docstring), not by assumption.
+
 - **2026-11-06, user site-packages leak.** `pip freeze` in `roshan-rag` listed langchain 0.2.11,
   langchain-ibm and watsonx packages that aren't in the env. Root cause: `~/.local/lib/python3.12/site-packages`
   (from older `pip install --user` runs) sits on `sys.path` *before* the env's site-packages,
