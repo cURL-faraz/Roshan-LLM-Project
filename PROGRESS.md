@@ -1,7 +1,7 @@
 # PROGRESS
 
 ## Current stage
-**Stage 3: Task 8, essential tests.** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
+**Stage 4: Task 9, submission (server, API docs, README, sample data, screenshots, ZIP).** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
 Strategy: strict MVP first. Get the end-to-end path working before adding anything else.
 
 ## Milestones
@@ -25,7 +25,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ accepted (verified) · ⏸ po
 | — | **M1 check: full flow inside Docker Compose** | M1 | 10m | ~30m | ✅ |
 | 6 | DRF documents CRUD API (upload, edit, delete) + history endpoint | M2 | 35m | not timed | ✅ |
 | 7 | BM25 retriever + RRF fusion (user writes RRF) + duplicate handling | M2 | 50m | not timed | ✅ |
-| 8 | Essential tests (extraction, RRF, sync, API with mocked LLM) | M2 | 40m | | 🟨 |
+| 8 | Essential tests (extraction, RRF, sync, API with mocked LLM) | M2 | 40m | ~2h | ✅ |
 | 9 | Production server (gunicorn + whitenoise), README, drf-spectacular docs, sample DOCX (EN + FA), screenshots, ZIP | M3 | Day 2 | | ⬜ |
 | — | Reranking, agents, metadata filters in API, eval set | — | — | | ⏸ (out of scope) |
 
@@ -80,8 +80,11 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
 - Measure the real Docker image size and cold-start time with torch in Task 2/4. If it's above about 2.5 GB
   or the build is too slow, switch to fastembed.
 
+- **Task 8 accepted 2026-11-09:** 19 tests (`rag` 9, `qa` 5, `documents` 5) pass in 0.1 s, also without `.env` and with `HF_HUB_OFFLINE=1`; real `media/` and Chroma untouched. Recommended: in the replace test, also assert `document.extracted_text == "new text"` after `refresh_from_db()` (currently only the response is checked).
+- **Knowledge gap, review session (user asked):** testing concepts are new to the user. Review: Arrange/Act/Assert; `SimpleTestCase` vs `APITestCase` (DB rollback per test); `@patch` where the name is used and stacked-decorator argument order; `return_value` vs `side_effect`; why `on_commit` never fires in tests and `captureOnCommitCallbacks(execute=True)`; `override_settings(MEDIA_ROOT=...)` + `tearDownClass`; `refresh_from_db`; expected values must be fixed literals, never read back from the system under test; view → serializer → model → signal → on_commit flow for POST, PATCH, DELETE; why `remove_on_delete` copies `instance.id` before the lambda.
+
 ## Next task
-Task 8: user fills in `rag/tests.py`, `documents/tests.py`, `qa/tests.py`. Then Task 9, starting with the production server and API docs.
+Task 9a: production server (gunicorn + whitenoise) and API docs (drf-spectacular). Then 9b README, sample data, screenshots, ZIP.
 
 ## Task 1 sub-steps
 - 1a ✅ env-based settings (`ImproperlyConfigured` on a missing key, `except KeyError ... from None`), `documents` app, `Document` model, migration 0001, MEDIA_ROOT (accepted 2026-11-07)
