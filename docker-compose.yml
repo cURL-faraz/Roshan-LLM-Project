@@ -10,6 +10,8 @@ services:
     volumes:
       - data:/app/data
       - media:/app/media
+      - hf_cache:/root/.cache/huggingface
 volumes:
   data:
   media:
+  hf_cache:

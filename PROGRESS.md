@@ -1,7 +1,7 @@
 # PROGRESS
 
 ## Current stage
-**Stage 2: M1 check in Docker.** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
+**Stage 3: Task 8, essential tests.** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
 Strategy: strict MVP first. Get the end-to-end path working before adding anything else.
 
 ## Milestones
@@ -22,11 +22,11 @@ Legend: ⬜ not started · 🟨 in progress · ✅ accepted (verified) · ⏸ po
 | 3 | OpenRouter smoke test: ChatOpenRouter, model availability, timeout and error handling | M1 | 25m | ~70m | ✅ |
 | 4 | `rag/`: chunking, E5 embeddings (with prefixes), Chroma indexing; sync on save/delete | M1 | 75m | ~2h | ✅ |
 | 5 | `qa` app: `QARecord`, dense retrieve → prompt → generate, `POST /api/ask/` | M1 | 70m | not timed | ✅ |
-| — | **M1 check: full flow inside Docker Compose** | M1 | 10m | | ⬜ |
+| — | **M1 check: full flow inside Docker Compose** | M1 | 10m | ~30m | ✅ |
 | 6 | DRF documents CRUD API (upload, edit, delete) + history endpoint | M2 | 35m | not timed | ✅ |
 | 7 | BM25 retriever + RRF fusion (user writes RRF) + duplicate handling | M2 | 50m | not timed | ✅ |
-| 8 | Essential tests (extraction, RRF, sync, API with mocked LLM) | M2 | 40m | | ⬜ |
-| 9 | README, drf-spectacular docs, sample DOCX (EN + FA), screenshots, ZIP | M3 | Day 2 | | ⬜ |
+| 8 | Essential tests (extraction, RRF, sync, API with mocked LLM) | M2 | 40m | | 🟨 |
+| 9 | Production server (gunicorn + whitenoise), README, drf-spectacular docs, sample DOCX (EN + FA), screenshots, ZIP | M3 | Day 2 | | ⬜ |
 | — | Reranking, agents, metadata filters in API, eval set | — | — | | ⏸ (out of scope) |
 
 Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Task 8 is the first to shrink.
@@ -63,7 +63,11 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
 - **Regression test for Task 8:** a blank LLM reply raises `GenerationError`. Also keep the off-topic hijack question as a test case.
 - **Task 6 prediction question still open:** which step rejects a `.zip`, which rejects a fake `.docx`, and why.
 - **API root (accepted limitation):** `GET /api/` lists only `history`, because two `DefaultRouter`s share the `api/` prefix. User chose to leave it.
-- **M1 check in Docker still not done.** It was planned before Task 6 and has been pushed back, so run it no later than after Task 7.
+- **M1 check passed in Docker, 2026-11-09.** Upload, ask (EN, FA, off-topic refusal), file replace, delete sync, validation 400s and read-only history all worked. `down`/`up` kept documents, history and media, with `hf_cache` unchanged at 471 MB and no re-download. Image 1.71 GB, `torch 2.15.0+cpu`. Hybrid checked on a temporary 8-chunk index: BM25 + dense put the right chunk first (score 0.03279). First upload took 73 s (model download); first ask after restart 23 s (model load), later asks about 10 s.
+- **`mixed` (document 1) is in SQLite but not in Chroma.** It was created 2026-11-08 00:40, before the sync signals were committed, so it can't be retrieved. Fix by deleting it in Admin. Same gap as a failed indexing run: there is no reindex command (useful, not mandatory).
+- **Test leftovers awaiting user cleanup:** 8 `QARecord` rows (all from the Docker check; history was empty before) and `media/documents/docker_test.docx`, `docker_test_v2.docx` in the volumes.
+- **Server (Task 9, user-raised):** compose runs `runserver`, the dev server. Plan: gunicorn (WSGI, since all views are sync), 1 worker with threads because each process loads the model and Chroma is local, `--timeout` above the LLM budget, whitenoise + `collectstatic` so Admin keeps its CSS. Not yet tested. `static()` serves media only when DEBUG is on.
+- **API docs missing (mandatory deliverable):** `/api/schema/` and `/api/docs/` return 404 until Task 9.
 - **Task 7 accepted 2026-11-09:** self-check all PASS on the user's files; end-to-end re-test happens in the Docker check.
 - **Final review to-do:** add `logger.exception` to the `GenerationError` handler in `qa/views.py`, so 503s can be diagnosed. Postponed by user decision.
 - **README "Known limitations and next steps":** no authentication; indexing failures are only logged, so the API can return 201 for an unsearchable document; old files stay in `media/`; no pagination, and lists include full text; `GET /api/` lists only history; no stopwords or evaluation set, and BM25 favors short chunks; no relevance cutoff; truncated answers aren't detected; Persian citations may use `[۱]`; BM25 is rebuilt per query.
@@ -77,7 +81,7 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
   or the build is too slow, switch to fastembed.
 
 ## Next task
-M1 check in Docker: CPU torch index, `hf_cache` volume, full flow, restart persistence. Then Task 8.
+Task 8: user fills in `rag/tests.py`, `documents/tests.py`, `qa/tests.py`. Then Task 9, starting with the production server and API docs.
 
 ## Task 1 sub-steps
 - 1a ✅ env-based settings (`ImproperlyConfigured` on a missing key, `except KeyError ... from None`), `documents` app, `Document` model, migration 0001, MEDIA_ROOT (accepted 2026-11-07)
