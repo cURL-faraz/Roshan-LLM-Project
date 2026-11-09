@@ -19,19 +19,19 @@ class AnswerResult:
 def answer_question(question: str, persist_directory: str, model_name: str, llm: BaseChatModel, k: int = DEFAULT_K) -> AnswerResult:
     """Retrieve, then generate. Skips the LLM entirely when nothing was retrieved.
 
-    Each source is {"document_id", "title", "chunk_index", "distance", "excerpt"}, in the same
+    Each source is {"document_id", "title", "chunk_index", "score", "excerpt"}, in the same
     order as the [n] citations in the answer.
     """
     results = retrieve(question, persist_directory, model_name, k)
     if results:
         sources = []
         chunks = []
-        for chunk, distance in results:
+        for chunk, score in results:
             chunks.append(chunk)
             source = {"document_id": chunk.metadata.get("document_id"),
                       "title": chunk.metadata.get("title"),
                       "chunk_index": chunk.metadata.get("chunk_index"),
-                      "distance": distance,
+                      "score": score,
                       "excerpt": chunk.page_content}
             sources.append(source)
         response = generate_answer(question, chunks, llm)

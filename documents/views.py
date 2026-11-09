@@ -5,7 +5,7 @@ from .serializers import DocumentSerializer
 
 
 class DocumentViewSet(viewsets.ModelViewSet):
-    """list, create, retrieve, update, partial_update and destroy for documents."""
+    """list, create, retrieve, update, partial_update and destroy for documents. Signals keep Chroma in sync."""
 
     queryset = Document.objects.all()
     serializer_class = DocumentSerializer

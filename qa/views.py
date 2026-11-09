@@ -25,5 +25,7 @@ class AskView(APIView):
             return Response({"detail": "The answer generation service is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         
 class QAViewSet(viewsets.ReadOnlyModelViewSet):
+    """GET /api/history/ and /api/history/<id>/. History can't be changed through the API."""
+
     queryset = QARecord.objects.all()
     serializer_class = QARecordSerializer         

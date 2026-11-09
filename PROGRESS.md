@@ -1,7 +1,7 @@
 # PROGRESS
 
 ## Current stage
-**Stage 2: Task 7 (BM25 + RRF hybrid retrieval, duplicate handling).** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
+**Stage 2: M1 check in Docker.** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
 Strategy: strict MVP first. Get the end-to-end path working before adding anything else.
 
 ## Milestones
@@ -24,7 +24,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ accepted (verified) · ⏸ po
 | 5 | `qa` app: `QARecord`, dense retrieve → prompt → generate, `POST /api/ask/` | M1 | 70m | not timed | ✅ |
 | — | **M1 check: full flow inside Docker Compose** | M1 | 10m | | ⬜ |
 | 6 | DRF documents CRUD API (upload, edit, delete) + history endpoint | M2 | 35m | not timed | ✅ |
-| 7 | BM25 retriever + RRF fusion (user writes RRF) + duplicate handling | M2 | 50m | | 🟨 |
+| 7 | BM25 retriever + RRF fusion (user writes RRF) + duplicate handling | M2 | 50m | not timed | ✅ |
 | 8 | Essential tests (extraction, RRF, sync, API with mocked LLM) | M2 | 40m | | ⬜ |
 | 9 | README, drf-spectacular docs, sample DOCX (EN + FA), screenshots, ZIP | M3 | Day 2 | | ⬜ |
 | — | Reranking, agents, metadata filters in API, eval set | — | — | | ⏸ (out of scope) |
@@ -36,8 +36,8 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
 - `config/`: Django project (settings read secrets from the environment).
 - `documents/`: Django app. `Document` is the source of truth (file, title, `extracted_text`).
 - `qa/`: Django app. `QARecord` (question, answer, sources, model, latency, timestamp).
-- `rag/`: plain Python with no Django imports. It handles extraction, chunking, embeddings, vector store, retrieval, generation and pipeline.
-- Django calls `rag.pipeline` (`index_document`, `delete_document`, `answer`). The Chroma
+- `rag/`: plain Python with no Django imports. It handles extraction, chunking, embeddings, vector store, sparse search, fusion, retrieval, generation, answering and pipeline.
+- Signals call `rag.pipeline` (`index_document`, `delete_document`); `qa.services` calls `rag.answering.answer_question`, which uses `rag.retrieval` (dense + BM25 + RRF) and `rag.generation`. The Chroma
   index is a derived copy, keyed by `document_id` in the chunk metadata.
 - Docker: one `web` service, with named volumes for `data/` (SQLite + Chroma), `media/` and the HF model cache.
 
@@ -64,6 +64,11 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
 - **Task 6 prediction question still open:** which step rejects a `.zip`, which rejects a fake `.docx`, and why.
 - **API root (accepted limitation):** `GET /api/` lists only `history`, because two `DefaultRouter`s share the `api/` prefix. User chose to leave it.
 - **M1 check in Docker still not done.** It was planned before Task 6 and has been pushed back, so run it no later than after Task 7.
+- **Task 7 accepted 2026-11-09:** self-check all PASS on the user's files; end-to-end re-test happens in the Docker check.
+- **Final review to-do:** add `logger.exception` to the `GenerationError` handler in `qa/views.py`, so 503s can be diagnosed. Postponed by user decision.
+- **README "Known limitations and next steps":** no authentication; indexing failures are only logged, so the API can return 201 for an unsearchable document; old files stay in `media/`; no pagination, and lists include full text; `GET /api/` lists only history; no stopwords or evaluation set, and BM25 favors short chunks; no relevance cutoff; truncated answers aren't detected; Persian citations may use `[۱]`; BM25 is rebuilt per query.
+- **Hybrid isn't uniformly better.** BM25 favors short chunks and matches common words, so `mixed` chunk 0 entered the top 4 for an unrelated Persian question and replaced chunk 21. No eval set, so this is observed, not measured.
+- **503s aren't logged.** One France request returned 503 and the cause couldn't be determined, because the view discards the exception.
 - Document language is unknown, so we design for English + Persian. The assessment brief
   (`docs/پروژه LLM.pdf`) is written in Persian, so Persian test documents are likely; sample data will include both.
 - The brief says the API must "at minimum include the following:" but the list is empty. We'll cover
@@ -72,7 +77,7 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
   or the build is too slow, switch to fastembed.
 
 ## Next task
-Task 7: `rag/sparse.py` (tokenize, BM25), `rag/fusion.py` (RRF), hybrid `retrieve`. Then the M1 check in Docker.
+M1 check in Docker: CPU torch index, `hf_cache` volume, full flow, restart persistence. Then Task 8.
 
 ## Task 1 sub-steps
 - 1a ✅ env-based settings (`ImproperlyConfigured` on a missing key, `except KeyError ... from None`), `documents` app, `Document` model, migration 0001, MEDIA_ROOT (accepted 2026-11-07)

@@ -9,7 +9,7 @@ from rag.llm import LLM_ERRORS
 
 
 class GenerationError(Exception):
-    """The LLM could not produce an answer (provider error, rate limit, timeout)."""
+    """The LLM could not produce an answer (provider error, rate limit, timeout, blank reply)."""
 
 
 PROMPT = ChatPromptTemplate.from_messages([
@@ -25,11 +25,11 @@ PROMPT = ChatPromptTemplate.from_messages([
 
 
 def format_context(chunks: list[LCDocument]) -> str:
-    """Render chunks as numbered blocks: '[1] (title)\\n<text>', separated by blank lines."""
+    """Render chunks as numbered blocks: '[1] (title)\\nchunk text', separated by blank lines."""
     return "\n\n".join([f'[{index}] ({chunk.metadata.get("title")})\n{chunk.page_content}' for index, chunk in enumerate(chunks, start=1)])
 
 def generate_answer(question: str, chunks: list[LCDocument], llm: BaseChatModel) -> str:
-    """Run prompt | llm | parser. Provider failures become GenerationError."""
+    """Run prompt | llm | parser. Provider failures and blank replies become GenerationError."""
     input_data = {"context": format_context(chunks), "question": question}
     try:
         chain = PROMPT | llm | StrOutputParser()
