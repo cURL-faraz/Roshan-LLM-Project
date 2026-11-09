@@ -2,8 +2,11 @@ from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import viewsets
 
 from rag.generation import GenerationError
+
+from .models import QARecord
 
 from .serializers import AskRequestSerializer, QARecordSerializer
 from .services import ask
@@ -21,4 +24,6 @@ class AskView(APIView):
         except GenerationError: 
             return Response({"detail": "The answer generation service is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         
-            
+class QAViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = QARecord.objects.all()
+    serializer_class = QARecordSerializer         

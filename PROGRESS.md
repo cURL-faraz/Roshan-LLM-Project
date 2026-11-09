@@ -1,7 +1,7 @@
 # PROGRESS
 
 ## Current stage
-**Stage 2: Task 6 (documents CRUD API and Q&A history).** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
+**Stage 2: Task 7 (BM25 + RRF hybrid retrieval, duplicate handling).** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
 Strategy: strict MVP first. Get the end-to-end path working before adding anything else.
 
 ## Milestones
@@ -23,8 +23,8 @@ Legend: ⬜ not started · 🟨 in progress · ✅ accepted (verified) · ⏸ po
 | 4 | `rag/`: chunking, E5 embeddings (with prefixes), Chroma indexing; sync on save/delete | M1 | 75m | ~2h | ✅ |
 | 5 | `qa` app: `QARecord`, dense retrieve → prompt → generate, `POST /api/ask/` | M1 | 70m | not timed | ✅ |
 | — | **M1 check: full flow inside Docker Compose** | M1 | 10m | | ⬜ |
-| 6 | DRF documents CRUD API (upload, edit, delete) + history endpoint | M2 | 35m | | 🟨 |
-| 7 | BM25 retriever + RRF fusion (user writes RRF) + duplicate handling | M2 | 50m | | ⬜ |
+| 6 | DRF documents CRUD API (upload, edit, delete) + history endpoint | M2 | 35m | not timed | ✅ |
+| 7 | BM25 retriever + RRF fusion (user writes RRF) + duplicate handling | M2 | 50m | | 🟨 |
 | 8 | Essential tests (extraction, RRF, sync, API with mocked LLM) | M2 | 40m | | ⬜ |
 | 9 | README, drf-spectacular docs, sample DOCX (EN + FA), screenshots, ZIP | M3 | Day 2 | | ⬜ |
 | — | Reranking, agents, metadata filters in API, eval set | — | — | | ⏸ (out of scope) |
@@ -48,6 +48,7 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
 - The extraction and tokenization pipeline is language-independent: Unicode normalization and
   Unicode-aware tokens, with no language-specific stemming.
 - Advanced retrieval: dense search first, then BM25 + dense fused with Reciprocal Rank Fusion. No reranker.
+- BM25 (2026-11-09): `rank_bm25.BM25Okapi`, rebuilt per query from `store.get()`, so Chroma stays the single copy and no invalidation is needed (fine at this corpus size). Okapi over BM25Plus because scores > 0 mean a real term match; Plus gave all 23 chunks a positive score. Consequence: in a tiny corpus a term in half or more of the chunks scores <= 0, and dense search covers it. Persian character and digit folding is applied, but no stemming or stopwords.
 - Extraction happens at form/serializer validation time through a pure function in `rag/extraction.py`, so an invalid DOCX is rejected with a validation error before any file is written. Admin and the API share the function.
 - Indexing runs synchronously on save (no Celery). Storage is SQLite + Chroma.
 - Dependencies: install intentionally into the clean `roshan-rag` env, then
@@ -60,7 +61,9 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
 - **Task 5 conceptual checkpoint still open.** Behavior accepted 2026-11-09, but the user hasn't yet explained the `/api/ask/` flow in their own words. Do this before the Task 5 interview drill.
 - **Citation digits (known limitation).** The model still writes `[۱]` in Persian answers despite the Western-digits rule. Harmless unless citations get linked to `sources`.
 - **Regression test for Task 8:** a blank LLM reply raises `GenerationError`. Also keep the off-topic hijack question as a test case.
-- **Task 6 scaffolds:** `documents/serializers.py`, `documents/urls.py` and `documents/views.py` hold TODOs and stay out of the Task 5 commit.
+- **Task 6 prediction question still open:** which step rejects a `.zip`, which rejects a fake `.docx`, and why.
+- **API root (accepted limitation):** `GET /api/` lists only `history`, because two `DefaultRouter`s share the `api/` prefix. User chose to leave it.
+- **M1 check in Docker still not done.** It was planned before Task 6 and has been pushed back, so run it no later than after Task 7.
 - Document language is unknown, so we design for English + Persian. The assessment brief
   (`docs/پروژه LLM.pdf`) is written in Persian, so Persian test documents are likely; sample data will include both.
 - The brief says the API must "at minimum include the following:" but the list is empty. We'll cover
@@ -69,7 +72,7 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
   or the build is too slow, switch to fastembed.
 
 ## Next task
-Task 6: `DocumentViewSet` with extraction in `validate()`, `GET /api/history/`. Then the M1 check in Docker.
+Task 7: `rag/sparse.py` (tokenize, BM25), `rag/fusion.py` (RRF), hybrid `retrieve`. Then the M1 check in Docker.
 
 ## Task 1 sub-steps
 - 1a ✅ env-based settings (`ImproperlyConfigured` on a missing key, `except KeyError ... from None`), `documents` app, `Document` model, migration 0001, MEDIA_ROOT (accepted 2026-11-07)
