@@ -1,7 +1,7 @@
 # PROGRESS
 
 ## Current stage
-**Stage 2: Task 5 (`qa` app, retrieval, generation, `POST /api/ask/`).** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
+**Stage 2: Task 6 (documents CRUD API and Q&A history).** Day 1 started 2026-11-06 18:12. Budget: about 7 focused hours.
 Strategy: strict MVP first. Get the end-to-end path working before adding anything else.
 
 ## Milestones
@@ -21,9 +21,9 @@ Legend: ⬜ not started · 🟨 in progress · ✅ accepted (verified) · ⏸ po
 | 2 | Minimal Dockerfile + compose; volume persistence test (SQLite + media) | M1 | 40m | ~45m | ✅ |
 | 3 | OpenRouter smoke test: ChatOpenRouter, model availability, timeout and error handling | M1 | 25m | ~70m | ✅ |
 | 4 | `rag/`: chunking, E5 embeddings (with prefixes), Chroma indexing; sync on save/delete | M1 | 75m | ~2h | ✅ |
-| 5 | `qa` app: `QARecord`, dense retrieve → prompt → generate, `POST /api/ask/` | M1 | 70m | | 🟨 |
+| 5 | `qa` app: `QARecord`, dense retrieve → prompt → generate, `POST /api/ask/` | M1 | 70m | not timed | ✅ |
 | — | **M1 check: full flow inside Docker Compose** | M1 | 10m | | ⬜ |
-| 6 | DRF documents CRUD API (upload, edit, delete) + history endpoint | M2 | 35m | | ⬜ |
+| 6 | DRF documents CRUD API (upload, edit, delete) + history endpoint | M2 | 35m | | 🟨 |
 | 7 | BM25 retriever + RRF fusion (user writes RRF) + duplicate handling | M2 | 50m | | ⬜ |
 | 8 | Essential tests (extraction, RRF, sync, API with mocked LLM) | M2 | 40m | | ⬜ |
 | 9 | README, drf-spectacular docs, sample DOCX (EN + FA), screenshots, ZIP | M3 | Day 2 | | ⬜ |
@@ -57,6 +57,10 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
   Torch needs the CPU wheel index in Docker (Task 4).
 
 ## Unresolved issues / open questions
+- **Task 5 conceptual checkpoint still open.** Behavior accepted 2026-11-09, but the user hasn't yet explained the `/api/ask/` flow in their own words. Do this before the Task 5 interview drill.
+- **Citation digits (known limitation).** The model still writes `[۱]` in Persian answers despite the Western-digits rule. Harmless unless citations get linked to `sources`.
+- **Regression test for Task 8:** a blank LLM reply raises `GenerationError`. Also keep the off-topic hijack question as a test case.
+- **Task 6 scaffolds:** `documents/serializers.py`, `documents/urls.py` and `documents/views.py` hold TODOs and stay out of the Task 5 commit.
 - Document language is unknown, so we design for English + Persian. The assessment brief
   (`docs/پروژه LLM.pdf`) is written in Persian, so Persian test documents are likely; sample data will include both.
 - The brief says the API must "at minimum include the following:" but the list is empty. We'll cover
@@ -65,7 +69,7 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
   or the build is too slow, switch to fastembed.
 
 ## Next task
-Task 5: `QARecord`, dense retrieve → prompt → generate, `POST /api/ask/`.
+Task 6: `DocumentViewSet` with extraction in `validate()`, `GET /api/history/`. Then the M1 check in Docker.
 
 ## Task 1 sub-steps
 - 1a ✅ env-based settings (`ImproperlyConfigured` on a missing key, `except KeyError ... from None`), `documents` app, `Document` model, migration 0001, MEDIA_ROOT (accepted 2026-11-07)
@@ -85,6 +89,10 @@ Task 5: `QARecord`, dense retrieve → prompt → generate, `POST /api/ask/`.
 - Task 0 overran (~2h vs 40m: foundations teaching + user-site leak). Default response: shrink Task 8 to the tests that matter most (RRF, index sync, ask API with a mocked LLM); docs/ZIP stay on Day 2.
 
 ## Incident log
+- **2026-11-09, off-topic question hijacked by document text.** "Capital of France?" sometimes returned a Persian or Chinese answer about Langfuse, because chunk 16 of `systemPrompt` holds a `User:` example and the prompt had no boundary around the context. Evidence, 3 runs per variant on the free model: current prompt 1/3 correct, newline fix only 1/3, newline + `<context>` delimiters 3/3. Small sample; delimiters reduce this risk, they don't remove it. Earlier passes were partly luck, so run prompt tests more than once.
+
+- **2026-11-09, empty and truncated answers from `/api/ask/`.** Root cause: nemotron is a reasoning model, and reasoning tokens count against `max_tokens`. With the mentor-suggested 800, a Persian question used all 800 on reasoning (`finish_reason=length`, 0 content chars); with 3000 the same call used 893 on reasoning and returned a full answer. Reasoning cost varies per call (685-893 observed). Lesson: `max_tokens` is the total output budget, and an empty string is a failure the code must detect, since `StrOutputParser` hides `finish_reason`.
+
 - **2026-11-08, 500 on Admin save during indexing (two causes).** (1) Document 1 predates extraction, so its `extracted_text` is empty; a title edit doesn't re-extract, so `chunk_text` returned `[]` and Chroma rejects an empty upsert (`ValueError`). Fix: return early when there are no chunks. (2) `robust=True` should have logged that error, but Django's logger reads `func.__qualname__`, which `functools.partial` lacks (`AttributeError`). Mentor's template suggested `partial`. Fix: copy values into locals, pass a `lambda` (it has `__qualname__`).
 
 - **2026-11-08, HF model load PermissionError.** `~/.cache` is owned by root with mode 700 (from an earlier sudo run; dated Jul 30), so the Hugging Face library can't read its token file or write its cache. Code was fine: the check passes with a writable `HF_HOME`. Fix: chown `~/.cache` back to the user.

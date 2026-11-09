@@ -2,13 +2,18 @@
 
 from langchain_core.language_models import BaseChatModel
 from langchain_openrouter import ChatOpenRouter
+from openrouter.errors import OpenRouterError
+from httpx import HTTPError
+
+LLM_ERRORS = (OpenRouterError, HTTPError)
 
 
 def build_chat_model(
     model: str,
     api_key: str,
     timeout: float = 60,
-    max_retries: int = 2,
+    max_retries: int = 1,
+    max_tokens: int = 3000,
     temperature: float = 0,
 ) -> BaseChatModel:
     """Return a configured ChatOpenRouter instance.
@@ -18,4 +23,4 @@ def build_chat_model(
 
     `timeout` is in seconds; ChatOpenRouter expects milliseconds, so it is converted here.
     """
-    return ChatOpenRouter(model=model, api_key=api_key, timeout=int(timeout * 1000), max_retries=max_retries, temperature=temperature)
+    return ChatOpenRouter(model=model, api_key=api_key, timeout=int(timeout * 1000), max_retries=max_retries, max_tokens=max_tokens, temperature=temperature)

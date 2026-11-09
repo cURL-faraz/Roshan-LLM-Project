@@ -38,6 +38,12 @@ ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS',
 
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "intfloat/multilingual-e5-small")
 
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL")
+
+OPENROUTER_TIMEOUT = float(os.environ.get("OPENROUTER_TIMEOUT", "60"))
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -48,6 +54,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'documents',
+    'rest_framework',
+    'qa',
 ]
 
 MIDDLEWARE = [
