@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -11,8 +12,12 @@ from .models import QARecord
 from .serializers import AskRequestSerializer, QARecordSerializer
 from .services import ask
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class AskView(APIView):
+    @extend_schema(request=AskRequestSerializer, responses={201: QARecordSerializer, 400: None, 503: None})
     def post(self, request: Request) -> Response:
         """POST {"question": "..."} → 201 with the saved record, 400 if invalid, 503 if the LLM fails."""
         ask_request_serializer = AskRequestSerializer(data=request.data)
@@ -22,6 +27,7 @@ class AskView(APIView):
             serialized_record = QARecordSerializer(record)
             return Response(data=serialized_record.data, status=status.HTTP_201_CREATED)
         except GenerationError: 
+            logger.exception("Answer generation failed")
             return Response({"detail": "The answer generation service is temporarily unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         
 class QAViewSet(viewsets.ReadOnlyModelViewSet):

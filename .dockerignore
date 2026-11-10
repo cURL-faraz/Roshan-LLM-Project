@@ -9,3 +9,5 @@ PROGRESS.md
 **/__pycache__/
 **/*.py[cod]
 **/.DS_Store
+staticfiles/
+sample_data/

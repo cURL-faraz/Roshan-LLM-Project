@@ -26,7 +26,7 @@ Legend: ⬜ not started · 🟨 in progress · ✅ accepted (verified) · ⏸ po
 | 6 | DRF documents CRUD API (upload, edit, delete) + history endpoint | M2 | 35m | not timed | ✅ |
 | 7 | BM25 retriever + RRF fusion (user writes RRF) + duplicate handling | M2 | 50m | not timed | ✅ |
 | 8 | Essential tests (extraction, RRF, sync, API with mocked LLM) | M2 | 40m | ~2h | ✅ |
-| 9 | Production server (gunicorn + whitenoise), README, drf-spectacular docs, sample DOCX (EN + FA), screenshots, ZIP | M3 | Day 2 | | ⬜ |
+| 9 | Production server (gunicorn + whitenoise), README, drf-spectacular docs, sample DOCX (EN + FA), screenshots, ZIP | M3 | Day 2 | ~3h | ✅ |
 | — | Reranking, agents, metadata filters in API, eval set | — | — | | ⏸ (out of scope) |
 
 Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Task 8 is the first to shrink.
@@ -83,8 +83,14 @@ Total for Day 1 (Tasks 0–8): about 7h 25m. That's slightly over budget, so Tas
 - **Task 8 accepted 2026-11-09:** 19 tests (`rag` 9, `qa` 5, `documents` 5) pass in 0.1 s, also without `.env` and with `HF_HUB_OFFLINE=1`; real `media/` and Chroma untouched. Recommended: in the replace test, also assert `document.extracted_text == "new text"` after `refresh_from_db()` (currently only the response is checked).
 - **Knowledge gap, review session (user asked):** testing concepts are new to the user. Review: Arrange/Act/Assert; `SimpleTestCase` vs `APITestCase` (DB rollback per test); `@patch` where the name is used and stacked-decorator argument order; `return_value` vs `side_effect`; why `on_commit` never fires in tests and `captureOnCommitCallbacks(execute=True)`; `override_settings(MEDIA_ROOT=...)` + `tearDownClass`; `refresh_from_db`; expected values must be fixed literals, never read back from the system under test; view → serializer → model → signal → on_commit flow for POST, PATCH, DELETE; why `remove_on_delete` copies `instance.id` before the lambda.
 
+- **Task 9 (2026-11-10):** gunicorn 26.2.0 (1 worker, 4 threads, `--timeout 180`) + whitenoise 6.12.0 + `collectstatic` at container start; drf-spectacular 0.30.0 with Swagger at `/api/docs/`, schema at `/api/schema/`, static copy `docs/openapi.yml` (0 errors; `AskView` needed `@extend_schema`). Sample data in `sample_data/` (EN handbook with a table, FA library guide, `questions.md`). README drafted by Claude for the user to review.
+- **Bug found in Task 9:** `OPENROUTER_TIMEOUT=60000` in `.env` and `.env.example`, but the setting is in seconds, so the LLM timeout was about 16 hours. Fixed to 60 in both.
+- **Server choice to defend:** 1 worker because each process loads its own embedding model and Chroma is local; threads share it. `--timeout 180` covers 60 s × 2 attempts. With `DJANGO_DEBUG=0`, media files are not served (README limitation).
+
+- **Task 9 accepted 2026-11-10:** Docker on gunicorn verified with the sample data (EN, FA, table answer, off-topic refusal). `logger.exception` added by the user, so the intermittent off-topic 503 (3 of 5 API calls, never reproduced directly, 8 of 8 OK) will now be visible in `docker compose logs web`; suspected free-model rate limiting, unconfirmed. Screenshots in `docs/screenshots/`, ADR 0001 accepted with measurements.
+
 ## Next task
-Task 9a: production server (gunicorn + whitenoise) and API docs (drf-spectacular). Then 9b README, sample data, screenshots, ZIP.
+Submission ZIP built at `/Users/faraz/roshan-llm-project-submission.zip` (excludes CLAUDE.md, PROGRESS.md, .claude/, the brief PDF, and everything git-ignored). Next: final review (`logger.exception`), interview drills and presentation prep, including the testing review session.
 
 ## Task 1 sub-steps
 - 1a ✅ env-based settings (`ImproperlyConfigured` on a missing key, `except KeyError ... from None`), `documents` app, `Document` model, migration 0001, MEDIA_ROOT (accepted 2026-11-07)
